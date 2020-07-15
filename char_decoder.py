@@ -55,34 +55,6 @@ class CharDecoder(nn.Module):
         return scores, dec_hidden
 
 
-    def train_forward(self, char_sequence, dec_hidden=None):
-        """
-        Forward computation during training.
-
-        @param char_sequence (Tensor): tensor of integers, shape (length, batch_size). Note that "length" here and in forward() need not be the same.
-        @param dec_hidden (tuple(Tensor, Tensor)): initial internal state of the LSTM, obtained from the output of the word-level decoder. A tuple of two tensors of shape (1, batch_size, hidden_size)
-        @returns The cross-entropy loss (Tensor), computed as the *sum* of cross-entropy losses of all the words in the batch.
-        """
-        ### YOUR CODE HERE for part 2b
-        ### TODO - Implement training forward pass.
-        ###
-        ### Hint: - Make sure padding characters do not contribute to the cross-entropy loss. Check vocab.py to find the padding token's index.
-        ###       - char_sequence corresponds to the sequence x_1 ... x_{n+1} (e.g., <START>,m,u,s,i,c,<END>). Read the handout about how to construct input and target sequence of CharDecoderLSTM.
-        ###       - Carefully read the documentation for nn.CrossEntropyLoss and our handout to see what this criterion have already included:
-        ###             https://pytorch.org/docs/stable/nn.html#crossentropyloss
-        padding_idx = self.target_vocab.char_pad
-
-        in_seq = char_sequence[ : -1]
-        out_seq = char_sequence[1 : ]
-
-        scores, dec_hidden = self.forward(in_seq, dec_hidden)
-        loss = torch.nn.functional.cross_entropy(scores.permute(0, 2, 1), out_seq,
-                                                 ignore_index=padding_idx, reduction="sum")
-
-        return loss
-        ### END YOUR CODE
-
-
     def decode_greedy(self, initialStates: Tuple[torch.Tensor, torch.Tensor],
                       device: torch.device, max_length: int=21) -> List[str]:
         """
@@ -95,17 +67,6 @@ class CharDecoder(nn.Module):
         @returns decodedWords (List[str]): a list (of length batch_size) of strings, each of which has length <= max_length.
                               The decoded strings should NOT contain the start-of-word and end-of-word characters.
         """
-
-        ### YOUR CODE HERE for part 2c
-        ### TODO - Implement greedy decoding.
-        ### Hints:
-        ###      - Use initialStates to get batch_size.
-        ###      - Use target_vocab.char2id and target_vocab.id2char to convert between integers and characters
-        ###      - Use torch.tensor(..., device=device) to turn a list of character indices into a tensor.
-        ###      - You may find torch.argmax or torch.argmax useful
-        ###      - We use curly brackets as start-of-word and end-of-word characters. That is, use the character '{' for <START> and '}' for <END>.
-        ###        Their indices are self.target_vocab.start_of_word and self.target_vocab.end_of_word, respectively.
-
         _, batch_size, _ = initialStates[0].shape
 
         start = self.target_vocab.start_of_word
