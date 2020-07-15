@@ -25,3 +25,4 @@ The following modules are implemented:
  * `model_embeddings.py` implements a character-based CNN model for computing word embeddings.
  * `char_decoder.py` implements a character-level decoder for genereting out-of-vocabulary words.
  * `nmt_model.py` implements a neural machine translation model using sequence-to-sequence with attention architecture and ties together the previous modules.
+ * `nmt_solver.py` implements a Solver object encapsulating all the logic needed to train a sequence-to-sequence NMT model.
