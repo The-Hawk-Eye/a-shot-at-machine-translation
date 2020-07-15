@@ -14,11 +14,11 @@ The model architecture uses a sequence-to-sequence network with attention. The e
 
 Model word embeddings are computed using a character-level CNN as described in [3]. A word is represented as a sequence of characters, and for each of these characters we lookup a dense character embedding vector. After that we use 1-dimensional convolutions to combine these characters. The kernel size essentially corresponds to the length of the n-gram the network learns to recognize. We take the maximum value, where the idea is to capture the most important feature. This way one filter of the CNN produces one feature. The number of filters corresponds to the dimension of the word embedding produced by the model. Finally we run the result through a highway network.
 
-!["Model Embeddings"]("img/model_embeddings.png")
+!["Model Embeddings"](img/model_embeddings.png)
 
 Additionally, an LSTM-based character-level decoder is added to the model as described in [4]. When the word-level decoder produces an *<UNK>* token, we run the character-level decoder to instead generate the target word one character at a time.
 
-!["Character Decoder"]("img/character_decoder.png")
+!["Character Decoder"](img/character_decoder.png)
 
 The following modules are implemented:
  * `vocab.py` implements a vocabulary object for the language model.
