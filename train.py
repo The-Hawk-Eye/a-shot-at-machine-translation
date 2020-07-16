@@ -42,17 +42,20 @@ def main():
     word_embed_size = 256
     char_embed_size = 50
     hidden_size = 256
-    dropout_rate = 0.3
+    dropout_rate = 0.25
     kernel_size = 5
     padding = 1
 
-    learning_rate = 0.01
+    learning_rate = 0.003
     lr_decay = 0.5
     clip_grad = 5.0
     batch_size = 64
-    num_epochs = 50
-    patience = 2
+    max_epochs = 50
+    patience = 3
+    max_num_trial = 5
     verbose = True
+    # model_save_path = "model.bin"
+    model_save_path = "/content/drive/My Drive/Colab Notebooks/a-shot-at-machine-translation/model.bin"
 
     # Build a model object.
     model = NMT(word_embed_size=word_embed_size,
@@ -67,14 +70,12 @@ def main():
     solver = Solver(model, dataset,
                     learning_rate=learning_rate, lr_decay=lr_decay,
                     clip_grad=clip_grad, batch_size=batch_size,
-                    num_epochs=num_epochs, patience=patience,
-                    verbose=verbose)
+                    max_epochs=max_epochs, patience=patience,
+                    max_num_trial=max_num_trial, verbose=verbose,
+                    model_save_path=model_save_path)
 
     # Train the model.
     solver.train()
-
-    # Save the model parameters.
-    model.save(path="model.bin")
 
     # Compute and print BLEU score.
     test_data = [src_test_sents, trg_test_sents]

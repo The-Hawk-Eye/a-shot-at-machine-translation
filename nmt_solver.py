@@ -25,9 +25,11 @@ class Solver(object):
         @param lr_decay (float): A scalar for exponentially decaying the learning rate.
         @param clip_grad (float): A scalar for gradient clipping.
         @param batch_size (int): Size of minibatches used to compute loss and gradient during training.
-        @param num_epochs (int): The number of epochs to run for during training.
+        @param max_epochs (int): The number of epochs to run for during training.
         @param patience (int): number of epochs to wait before returning to the best model.
+        @param max_num_trial (int): number of trials before termination.
         @param verbose (bool): if set to false then no output will be printed during training.
+        @param model_save_path (str): file path to save the model.
         """
         self.model = model
         self.dataset = dataset
@@ -37,9 +39,11 @@ class Solver(object):
         self.lr_decay = kwargs.pop("lr_decay", 1.0)
         self.clip_grad = kwargs.pop("clip_grad", 5.0)
         self.batch_size = kwargs.pop("batch_size", 64)
-        self.num_epochs = kwargs.pop("num_epochs", 10)
+        self.max_epochs = kwargs.pop("max_epochs", 10)
         self.patience = kwargs.pop("patience", 1)
+        self.max_num_trial = kwargs.pop("max_num_trial", 5)
         self.verbose = kwargs.pop("verbose", True)
+        self.model_save_path = kwargs.pop("model_save_path", "model.bin")
 
         # Throw an error if there are extra keyword arguments.
         if len(kwargs) > 0:
@@ -94,17 +98,11 @@ class Solver(object):
 
         # Initialize the optimizer.
         optimizer = torch.optim.Adam(self.model.parameters(), lr=self.learning_rate)
-
-        ##################
-        optimizer.load_state_dict(torch.load("/content/drive/My Drive/Colab Notebooks/a-shot-at-machine-translation/model.bin.optim"))
-        ##################
-
-
         lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=1, gamma=self.lr_decay)
 
         # Begin training.
         print("Begin training..")
-        epoch = patience = 0
+        epoch = patience = num_trial = 0
         best_dev_ppl = 0.
         while True:
             epoch += 1
@@ -138,37 +136,46 @@ class Solver(object):
             # Printout results.
             if self.verbose:
                 print("Epoch (%d/%d), avg loss: %.1f, avg train ppl: %.1f, dev ppl: %.1f" % (
-                    epoch, self.num_epochs, avg_loss, train_ppl, dev_ppl))
+                    epoch, self.max_epochs, avg_loss, train_ppl, dev_ppl))
 
-            if best_dev_ppl == 0 or dev_ppl < best_dev_ppl:
             # If the model is performing better than it was on the previous epoch, then save the model
-            # parameters and the optimizer state.
+            # parameters and the optimizer state. There must be at least 2% margin!
+            # If the model is performing worse than it was on the previous epoch, then increase the patience.
+            # if the patience reaches a limit, reload the previous parameters, decay the learning rate, and icrease trial count.
+            if best_dev_ppl == 0 or dev_ppl < 0.98 * best_dev_ppl:
                 print("saving the new best model..")
                 best_dev_ppl = dev_ppl
-                self.model.save(path="model.bin")
-                torch.save(optimizer.state_dict(), "model.bin.optim")
-                patience = 1
+                self.model.save(self.model_save_path)
+                torch.save(optimizer.state_dict(), self.model_save_path + ".optim")
+                patience = 0
             else:
-            # If the model is performing worse than it was on the previous epoch, then check the patiense.
-                if patience < self.patience:
-                # if the patience is low, increase the patience
-                    print("increasing patience..")
-                    patience += 1
-                else:
-                # if the patience is high, reload the previous parameters and decay the learning rate
+                patience += 1
+                print("increaseing patience = %d" % patience)
+                if patience >= self.patience:
                     print("loading the previous best model..")
-                    params = torch.load("model.bin", map_location=lambda storage, loc: storage)
+                    params = torch.load(self.model_save_path, map_location=lambda storage, loc: storage)
                     self.model.load_state_dict(params["state_dict"])
                     self.model = self.model.to(device)
-                    optimizer.load_state_dict(torch.load("model.bin.optim"))
+                    optimizer.load_state_dict(torch.load(self.model_save_path + ".optim"))
 
                     # Reset patience.
-                    patience = 1
+                    patience = 0
+
+                    # Increase the trial count.
+                    num_trial += 1
 
                     # Decay the learning rate.
                     lr_scheduler.step()
 
+            # If the trial count reaches the maximum number of trials, stop the training.
+            if num_trial >= self.max_num_trial:
+                print("Reached maximum number of trials!")
+                break
+
             # If the maximum number of epochs is reached, stop the training.
-            if epoch == self.num_epochs:
+            if epoch == self.max_epochs:
                 print("Reached maximum number of epochs!")
                 break
+
+        # Save the final model parameters.
+        self.model.save(self.model_save_path)
