@@ -17,7 +17,7 @@ Model word embeddings are computed using a character-level CNN as described in [
 
 !["Model Embedding"](img/model_embedding.png)
 
-Additionally, an LSTM-based character-level decoder is added to the model as described in [5]. When the word-level decoder produces an *<UNK>* token, we run the character-level decoder to instead generate the target word one character at a time.
+Additionally, an LSTM-based character-level decoder is added to the model as described in [5]. When the word-level decoder produces an *UNK* token, we run the character-level decoder to instead generate the target word one character at a time.
 
 !["Character Decoder"](img/character_decoder.png)
 
