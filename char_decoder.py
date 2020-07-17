@@ -26,14 +26,14 @@ class CharDecoder(nn.Module):
         self.target_vocab = target_vocab
 
         # Embedding layer for character embeddings.
-        self.char_emb = nn.Embedding(len(self.target_vocab.char2id), char_embed_size,
-                                           padding_idx=self.target_vocab.char_pad)
+        self.char_emb = nn.Embedding(len(target_vocab.char2id), char_embed_size,
+                                           padding_idx=target_vocab.char_pad)
 
         # RNN for generating characters.
         self.charDecoder = nn.LSTM(char_embed_size, hidden_size)
 
         # Linear layer for computing scores.
-        self.char_output_projection = nn.Linear(hidden_size, len(self.target_vocab.char2id))
+        self.char_output_projection = nn.Linear(hidden_size, len(target_vocab.char2id))
 
 
     def forward(self, input: torch.Tensor,
@@ -41,18 +41,18 @@ class CharDecoder(nn.Module):
         """
         Forward pass of character decoder.
 
-        @param input (Tensor): tensor of integers, shape (sentence_length * max_word_len, batch_size)
+        @param input (Tensor): tensor of integers, shape (max_word_len, sent_len * batch_size)
         @param dec_hidden (tuple(Tensor, Tensor)): internal state of the LSTM before reading the input characters.
                                                     A tuple of two tensors of shape (1, batch, hidden_size)
-        @returns scores (Tensor): a Tensor of shape (sentence_length * max_word_len, batch_size, self.vocab_size)
+        @returns scores (Tensor): a Tensor of shape (max_word_len, sent_len * batch_size, vocab_size)
         @returns dec_hidden (tuple(Tensor, Tensor)): internal state of the LSTM after reading the input characters.
                                                     A tuple of two tensors of shape (1, batch, hidden_size)
         """
-        x = self.char_emb(input)
-        output, dec_hidden = self.charDecoder(x, dec_hidden)
+        x = self.char_emb(input)    # (word_len, sent_len * batch_size, embed_size)
+        output, (h_n, c_n) = self.charDecoder(x, dec_hidden)
         scores = self.char_output_projection(output)
 
-        return scores, dec_hidden
+        return scores, (h_n, c_n)
 
 
     def decode_greedy(self, initialStates: Tuple[torch.Tensor, torch.Tensor],
@@ -61,11 +61,11 @@ class CharDecoder(nn.Module):
         Greedy decoding.
 
         @param initialStates (tuple(Tensor, Tensor)): initial internal state of the LSTM.
-                                                A tuple of two tensors of size (1, batch_size, hidden_size)
+                                                A tuple of two tensors of size (1, batch, hidden_size)
         @param device (torch.device): indicates whether the model is on CPU or GPU.
-        @param max_length (int): maximum length of words to decode
+        @param max_length (int): maximum length of sequence of chars to decode
         @returns decodedWords (List[str]): a list (of length batch_size) of strings, each of which has length <= max_length.
-                              The decoded strings should NOT contain the start-of-word and end-of-word characters.
+                              The decoded strings do NOT contain the start-of-word and end-of-word characters.
         """
         _, batch_size, _ = initialStates[0].shape
 
@@ -80,13 +80,12 @@ class CharDecoder(nn.Module):
             output_words.append(current_chars)
 
         output_words = torch.cat(output_words, dim=0).t().tolist()
-
         decodedWords = []
         for word in output_words:
             current_word = ""
             for idx in word:
                 char = self.target_vocab.id2char[idx]
-                if char == "}":
+                if char == self.target_vocab.end_of_word:
                     break
                 else:
                     current_word += char

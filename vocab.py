@@ -9,6 +9,7 @@ from collections import Counter
 from itertools import chain
 import json
 import torch
+import sys
 from typing import List
 
 from utils import read_corpus, pad_sents, pad_sents_char
@@ -34,8 +35,9 @@ class VocabEntry(object):
             self.word2id["</s>"] = 2    # End Token
             self.word2id["<unk>"] = 3   # Unknown Token
 
-        self.unk_id = self.word2id["<unk>"]
         self.id2word = {v: k for k, v in self.word2id.items()}
+        self.word_unk = self.word2id["<unk>"]
+        self.word_pad = self.word2id["<pad>"]
 
         # Character-level representation
         self.char2id = dict()  # Converts characters to integers
@@ -50,13 +52,11 @@ class VocabEntry(object):
             self.char2id[c] = len(self.char2id)
 
         self.id2char = {v: k for k, v in self.char2id.items()}
-
         self.char_pad = self.char2id["<p>"]
         self.char_unk = self.char2id["<u>"]
         self.start_of_word = self.char2id["{"]
         self.end_of_word = self.char2id["}"]
         assert self.start_of_word + 1 == self.end_of_word
-
 
 
     def __getitem__(self, word):
@@ -67,7 +67,7 @@ class VocabEntry(object):
         @param word (str): word to look up.
         @returns index (int): index of word 
         """
-        return self.word2id.get(word, self.unk_id)
+        return self.word2id.get(word, self.word_unk)
 
 
     def __contains__(self, word):
@@ -243,10 +243,10 @@ class Vocab(object):
         """
         assert len(src_sents) == len(trg_sents)
 
-        print("initialize source vocabulary ..")
+        print("initialize source vocabulary ..", file=sys.stderr)
         src = VocabEntry.from_corpus(src_sents, vocab_size, freq_cutoff)
 
-        print("initialize target vocabulary ..")
+        print("initialize target vocabulary ..", file=sys.stderr)
         trg = VocabEntry.from_corpus(trg_sents, vocab_size, freq_cutoff)
 
         return Vocab(src, trg)

@@ -1,6 +1,7 @@
 import torch
 import numpy as np
 import sys
+import time
 
 from utils import read_corpus, pad_sents, batch_iter, compute_corpus_level_bleu_score
 from vocab import VocabEntry, Vocab
@@ -10,20 +11,21 @@ from nmt_solver import Solver
 
 def main():
     # Read the data.
-    # data_path = "datasets/en_es_data/"
-    data_path = "/content/drive/My Drive/Colab Notebooks/a-shot-at-machine-translation/datasets/en_es_data/"
+    # data_path = "datasets/en_de_data/"
+    data_path = "/content/drive/My Drive/Colab Notebooks/a-shot-at-machine-translation/datasets/en_de_data/"
 
-    print("Reading training data from %s ..." % data_path)
-    src_train_sents = read_corpus(data_path + "train.es", source="src")
+    print("Reading training data from %s ..." % data_path, file=sys.stderr)
+    src_train_sents = read_corpus(data_path + "train.de", source="src")
     trg_train_sents = read_corpus(data_path + "train.en", source="trg")
 
-    print("Reading development data...")
-    src_dev_sents = read_corpus(data_path + "dev.es", source="src")
+    print("Reading development data...", file=sys.stderr)
+    src_dev_sents = read_corpus(data_path + "dev.de", source="src")
     trg_dev_sents = read_corpus(data_path + "dev.en", source="trg")
 
-    print("Reading test data...")
-    src_test_sents = read_corpus(data_path + "test.es", source="src")
-    trg_test_sents = read_corpus(data_path + "test.en", source="trg")
+    # Build a dataset object.
+    train_data = list(zip(src_train_sents, trg_train_sents))
+    dev_data = list(zip(src_dev_sents, trg_dev_sents))
+    dataset = {"train_data" : train_data, "dev_data" : dev_data}
 
     # Build a vocabulary of source and target language.
     vocab_file = "vocab.json"
@@ -33,20 +35,15 @@ def main():
     vocab = Vocab.build(src_train_sents, trg_train_sents, vocab_size, freq_cutoff)
     vocab.save(vocab_file)
 
-    # Build a dataset object.
-    train_data = list(zip(src_train_sents, trg_train_sents))
-    dev_data = list(zip(src_dev_sents, trg_dev_sents))
-    dataset = {"train_data" : train_data, "dev_data" : dev_data}
-
     # Hyperparameters.
     word_embed_size = 256
     char_embed_size = 50
     hidden_size = 256
-    dropout_rate = 0.25
+    dropout_rate = 0.3
     kernel_size = 5
     padding = 1
 
-    learning_rate = 0.003
+    learning_rate = 0.001
     lr_decay = 0.5
     clip_grad = 5.0
     batch_size = 64
@@ -54,8 +51,8 @@ def main():
     patience = 3
     max_num_trial = 5
     verbose = True
-    # model_save_path = "model.bin"
-    model_save_path = "/content/drive/My Drive/Colab Notebooks/a-shot-at-machine-translation/model.bin"
+    # model_save_path = "model_en_de.bin"
+    model_save_path = "/content/drive/My Drive/Colab Notebooks/a-shot-at-machine-translation/model_en_de.bin"
 
     # Build a model object.
     model = NMT(word_embed_size=word_embed_size,
@@ -75,12 +72,19 @@ def main():
                     model_save_path=model_save_path)
 
     # Train the model.
+    tic = time.time()
     solver.train()
+    toc = time.time()
+    print("Training took %.3f minutes" % ((toc - tic) / 60), file=sys.stderr)
 
     # Compute and print BLEU score.
+    print("Reading test data...", file=sys.stderr)
+    src_test_sents = read_corpus(data_path + "test.de", source="src")
+    trg_test_sents = read_corpus(data_path + "test.en", source="trg")
     test_data = [src_test_sents, trg_test_sents]
+
     bleu_score = compute_corpus_level_bleu_score(model=model, data=test_data)
-    print("Corpus BLEU: %.3f" % (bleu_score * 100))
+    print("Corpus BLEU: %.3f" % (bleu_score * 100), file=sys.stderr)
 
 
 if __name__ == "__main__":

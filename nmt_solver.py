@@ -6,6 +6,7 @@ for neural machine translation.
 import torch
 import torch.nn.utils
 import numpy as np
+import sys
 from typing import List, Tuple, Dict, Set, Union
 # from tqdm import tqdm
 
@@ -51,7 +52,7 @@ class Solver(object):
             raise ValueError("Unrecognized arguments %s" % extra)
 
 
-    def eval_ppl(self, data: List[Tuple[List[str], List[str]]], batch_size: int=256) -> float:
+    def eval_ppl(self, data: List[Tuple[List[str], List[str]]], batch_size: int=64) -> float:
         """
         Evaluate the model perplexity on the given set.
 
@@ -67,7 +68,7 @@ class Solver(object):
 
         with torch.no_grad():
             for src_sents, trg_sents in batch_iter(data, batch_size):
-                loss = -self.model(src_sents, trg_sents).sum()
+                loss = self.model(src_sents, trg_sents)
 
                 cum_loss += loss.item()
                 trg_word_num_to_predict = sum(len(s[1:]) for s in trg_sents)  # omitting leading "<s>"
@@ -91,7 +92,7 @@ class Solver(object):
         # Check if 'cuda' is available.
         # device = xm.xla_device() # tpu
         device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
-        print("Using device: %s" % device)
+        print("Using device: %s" % device, file=sys.stderr)
 
         # Send the model to device.
         self.model = self.model.to(device)
@@ -101,7 +102,7 @@ class Solver(object):
         lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=1, gamma=self.lr_decay)
 
         # Begin training.
-        print("Begin training..")
+        print("Begin training..", file=sys.stderr)
         epoch = patience = num_trial = 0
         best_dev_ppl = 0.
         while True:
@@ -112,9 +113,8 @@ class Solver(object):
                 curr_batch_size = len(src_sents)
 
                 # Compute the forward pass and the loss.
-                example_losses = -self.model(src_sents, trg_sents)
-                batch_loss = example_losses.sum()
-                loss = batch_loss / curr_batch_size
+                total_loss = self.model(src_sents, trg_sents)
+                loss = total_loss / curr_batch_size
 
                 # Zero the gradients, perform backward pass, clip the gradients, and update the gradients.
                 optimizer.zero_grad()
@@ -123,7 +123,7 @@ class Solver(object):
                 optimizer.step()
 
                 # Bookkeeping.
-                report_loss += batch_loss.item()
+                report_loss += total_loss.item()
                 report_examples += curr_batch_size
                 trg_word_num_to_predict = sum(len(s[1:]) for s in trg_sents)    # omitting leading "<s>"
                 cum_trg_words += trg_word_num_to_predict

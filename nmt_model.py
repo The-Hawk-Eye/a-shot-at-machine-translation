@@ -88,10 +88,11 @@ class NMT(nn.Module):
 
         # Initialize the model parameters.
         for param in self.parameters():
-            if len(param.shape) > 1:
-                torch.nn.init.kaiming_normal_(param)
-            else:
-                torch.nn.init.uniform_(param, -0.1, 0.1)
+            torch.nn.init.uniform_(param, -0.1, 0.1)
+            # if len(param.shape) > 1:
+            #     torch.nn.init.kaiming_normal_(param)
+            # else:
+            #     torch.nn.init.uniform_(param, -0.1, 0.1)
 
 
     def forward(self, source: List[List[str]], target: List[List[str]]) -> torch.Tensor:
@@ -121,36 +122,34 @@ class NMT(nn.Module):
         source_padded_chars = self.vocab.src.to_input_tensor_char(source, device=self.device)
         target_padded_chars = self.vocab.trg.to_input_tensor_char(target, device=self.device)
 
-        # Compute the log-probabilities.
+        # Compute the scores.
         enc_hiddens, dec_init_state = self.encode(source_padded_chars, source_lengths)
         enc_masks = self.generate_sent_masks(enc_hiddens, source_lengths)
         combined_outputs = self.decode(enc_hiddens, enc_masks, dec_init_state, target_padded_chars)
-        P = F.log_softmax(self.target_vocab_projection(combined_outputs), dim=-1)
+        word_scores = self.target_vocab_projection(combined_outputs)
 
-        # Zero out, probabilities for which we have nothing in the target text
-        target_masks = (target_padded != self.vocab.trg["<pad>"]).float()
-        
-        # Compute log probability of generating true target words
-        target_gold_words_log_prob = torch.gather(P, index=target_padded[1:].unsqueeze(-1), dim=-1).squeeze(-1) * target_masks[1:]
-        scores = target_gold_words_log_prob.sum()
+        # Compute the word-level loss
+        loss = F.cross_entropy(word_scores.view(-1, len(self.vocab.trg)), target_padded[1:].view(-1),
+                                                ignore_index=self.vocab.trg.word_pad, reduction="sum")
 
-        # Generate input character sequence and target output character sequence
-        # for training character level decoder.
+        # Generate input char sequence and target output char sequence for training char-level decoder.
         max_word_len = target_padded_chars.shape[-1]
-        rnn_states_oov = combined_outputs.view(-1, self.hidden_size).unsqueeze(0)
-        target_chars_oov = target_padded_chars[1:].contiguous().view(-1, max_word_len)
-        target_chars_oov = target_chars_oov.t().contiguous() # Transpose before calling charDecoder.
+        target_chars_oov = target_padded_chars[1:].contiguous().view(-1, max_word_len)  # (trg_len * b, w)
+        target_chars_oov = target_chars_oov.transpose(1, 0).contiguous()                # (w, trg_len * b)
         in_seq = target_chars_oov[ : -1]
         out_seq = target_chars_oov[1 : ]
 
-        # Compute character-based decoder loss and add to the word-based decoder loss.
-        char_scores, _ = self.charDecoder(in_seq, (rnn_states_oov, rnn_states_oov))
-        padding_idx = self.charDecoder.target_vocab.char_pad
-        oovs_losses = F.cross_entropy(char_scores.permute(0, 2, 1), out_seq,
-                                      ignore_index=padding_idx, reduction="sum")
-        scores = scores - oovs_losses
-        return scores
+        # Use the combined_outputs to initialize the char-level decoder hidden and cell states.
+        rnn_hidden_oov = combined_outputs.view(-1, self.hidden_size).unsqueeze(0)       # (1, trg_len * b, h)
+        rnn_cell_oov = torch.zeros(rnn_hidden_oov.shape, device=self.device)
 
+        # Compute character-based decoder loss and add to the word-based decoder loss.
+        char_scores, _ = self.charDecoder(in_seq, (rnn_hidden_oov, rnn_cell_oov))
+        oovs_losses = F.cross_entropy(char_scores.permute(0, 2, 1), out_seq,
+                                      ignore_index=self.vocab.trg.char_pad, reduction="sum")
+        loss = loss + 0.1 * oovs_losses
+
+        return loss
 
     def encode(self, source_padded: torch.Tensor, source_lengths: List[int]) -> Tuple[
         torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]:
@@ -366,9 +365,11 @@ class NMT(nn.Module):
             max_elem, max_idx = torch.max(log_p_t, dim=1)
             next_word = self.vocab.trg.id2word[max_idx.item()]
 
-            # If the decoded word is unknown, use the character decoder to infer an out-of-vocabulary word.
+            # If the decoded word is "<unk>", use the character decoder to infer an out-of-vocabulary word.
+            # if next_word == self.vocab.trg.word2id[self.vocab.trg.word_unk]:
             if next_word == "<unk>":
-                next_word = self.charDecoder.decode_greedy(initialStates=dec_state, device=self.device)
+                next_word = self.charDecoder.decode_greedy((dec_state[0].unsqueeze(0), dec_state[1].unsqueeze(0)),
+                                                           device=self.device)[0]
             
             # If the decoded word is "</s>", stop the inference and return the translated sentence.
             if next_word == "</s>":
@@ -524,7 +525,7 @@ class NMT(nn.Module):
 
         @param path (str): path to the model
         """
-        print("save model parameters to [%s]" % path, file=sys.stderr)
+        print("save model parameters to [%s]" % path)
 
         params = {
             "args": dict(word_embed_size=self.model_embeddings_source.word_embed_size,

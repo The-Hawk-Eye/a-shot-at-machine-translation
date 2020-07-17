@@ -38,6 +38,8 @@ def pad_sents_char(sents: List[List[List[int]]], char_pad_token: int) -> List[Li
         sent_padded = []
 
         for w in sentence:
+            # if w in punctuation:
+            #     continue
             data = [c for c in w] + [char_pad_token for _ in range(max_word_length-len(w))]
             if len(data) > max_word_length:
                 data = data[:max_word_length]
@@ -66,8 +68,9 @@ def pad_sents(sents: List[List[str]], pad_token: str) -> List[List[str]]:
     lengths = np.array([len(sent) for sent in sents])
     max_length = np.max(lengths)
 
-    for _sent in sents:
-        sent = _sent.copy()
+    for sent_ in sents:
+        # sent = [word for word in sent_ if word not in punctuation]
+        sent = sent_.copy()
         while (len(sent) < max_length):
             sent.append(pad_token)
         sents_padded.append(sent)
@@ -85,7 +88,8 @@ def read_corpus(file_path: str, source: str) -> List[List[str]]:
     @returns data (List[List(str)]): sentences as a list of list of words.
     """
     data = []
-    for line in open(file_path):
+    # with open(file_path, encoding="utf-8") as file:
+    for line in open(file_path):#file:
         sent = nltk.word_tokenize(line)
 
         # only append <s> and </s> to the target sentence
@@ -133,6 +137,8 @@ def compute_corpus_level_bleu_score(model, data, beam_size: int=5, max_decoding_
     @param max_decoding_time_step (int): maximum sentence length that Beam search can produce
     @returns bleu_score (float): corpus-level BLEU score.
     """
+    model.eval()
+
     source_sentences = data[0]      # Input sentences for translation.
     references = data[1]            # Gold-standard reference target senteces.
 
