@@ -47,7 +47,6 @@ Simple Neural Machine Translation Model:
     - Global Attention Model (Luong, et al. 2015)
 """
 class NMT(nn.Module):
-    # def __init__(self, embed_size: int, hidden_size: int, vocab: Vocab, dropout_rate: float=0.2):
     def __init__(self, word_embed_size: int, char_embed_size: int, hidden_size: int, vocab: Vocab,
                  dropout_rate: int=0.2, kernel_size: int=5, padding: int=1):
         """
