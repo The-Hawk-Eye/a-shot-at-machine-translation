@@ -146,7 +146,7 @@ class NMT(nn.Module):
         char_scores, _ = self.charDecoder(in_seq, (rnn_hidden_oov, rnn_cell_oov))
         oovs_losses = F.cross_entropy(char_scores.permute(0, 2, 1), out_seq,
                                       ignore_index=self.vocab.trg.char_pad, reduction="sum")
-        loss = loss + 0.1 * oovs_losses
+        loss = loss + 1.0 * oovs_losses
 
         return loss
 
@@ -337,7 +337,7 @@ class NMT(nn.Module):
         return enc_masks.to(self.device)
 
 
-    def simple_inference(self, src_sent: List[str], max_length: int=50) -> List[str]:
+    def greedy_decoding(self, src_sent: List[str], max_length: int=50) -> List[str]:
         """
         Given a single source sentence, decode the sentence, yielding translation in the target language.
 

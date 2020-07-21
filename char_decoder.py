@@ -84,10 +84,10 @@ class CharDecoder(nn.Module):
         for word in output_words:
             current_word = ""
             for idx in word:
-                char = self.target_vocab.id2char[idx]
-                if char == self.target_vocab.end_of_word:
+                if idx == self.target_vocab.end_of_word:
                     break
                 else:
+                    char = self.target_vocab.id2char[idx]
                     current_word += char
             decodedWords.append(current_word)
 

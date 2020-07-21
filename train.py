@@ -11,15 +11,14 @@ from nmt_solver import Solver
 
 def main():
     # Read the data.
-    # data_path = "datasets/en_de_data/"
-    data_path = "/content/drive/My Drive/Colab Notebooks/a-shot-at-machine-translation/datasets/en_de_data/"
+    data_path = "datasets/en_es_data/"
 
     print("Reading training data from %s ..." % data_path, file=sys.stderr)
-    src_train_sents = read_corpus(data_path + "train.de", source="src")
+    src_train_sents = read_corpus(data_path + "train.es", source="src")
     trg_train_sents = read_corpus(data_path + "train.en", source="trg")
 
     print("Reading development data...", file=sys.stderr)
-    src_dev_sents = read_corpus(data_path + "dev.de", source="src")
+    src_dev_sents = read_corpus(data_path + "dev.es", source="src")
     trg_dev_sents = read_corpus(data_path + "dev.en", source="trg")
 
     # Build a dataset object.
@@ -28,7 +27,7 @@ def main():
     dataset = {"train_data" : train_data, "dev_data" : dev_data}
 
     # Build a vocabulary of source and target language.
-    vocab_file = "vocab.json"
+    vocab_file = "vocab_en_es"
     vocab_size = 50000
     freq_cutoff = 2
 
@@ -51,8 +50,7 @@ def main():
     patience = 3
     max_num_trial = 5
     verbose = True
-    # model_save_path = "model_en_de.bin"
-    model_save_path = "/content/drive/My Drive/Colab Notebooks/a-shot-at-machine-translation/model_en_de.bin"
+    model_save_path = "model_en_es"
 
     # Build a model object.
     model = NMT(word_embed_size=word_embed_size,
@@ -79,7 +77,7 @@ def main():
 
     # Compute and print BLEU score.
     print("Reading test data...", file=sys.stderr)
-    src_test_sents = read_corpus(data_path + "test.de", source="src")
+    src_test_sents = read_corpus(data_path + "test.es", source="src")
     trg_test_sents = read_corpus(data_path + "test.en", source="trg")
     test_data = [src_test_sents, trg_test_sents]
 

@@ -5,9 +5,9 @@ Utility functions for preprocessing a corpus of data.
 import math
 import numpy as np
 import torch
-from typing import List, Tuple
 import nltk
 from nltk.translate.bleu_score import corpus_bleu
+from typing import List, Tuple
 
 nltk.download("punkt")
 
@@ -38,14 +38,12 @@ def pad_sents_char(sents: List[List[List[int]]], char_pad_token: int) -> List[Li
         sent_padded = []
 
         for w in sentence:
-            # if w in punctuation:
-            #     continue
             data = [c for c in w] + [char_pad_token for _ in range(max_word_length-len(w))]
             if len(data) > max_word_length:
                 data = data[:max_word_length]
             sent_padded.append(data)
 
-        sent_padded = sent_padded[:max_sent_len] + [[char_pad_token]*max_word_length] * max(0, max_sent_len - len(sent_padded))
+        sent_padded = sent_padded[:max_sent_len] + [[char_pad_token]*max_word_length] * max(0, max_sent_len-len(sent_padded))
         sents_padded.append(sent_padded)
 
     return sents_padded
@@ -69,7 +67,6 @@ def pad_sents(sents: List[List[str]], pad_token: str) -> List[List[str]]:
     max_length = np.max(lengths)
 
     for sent_ in sents:
-        # sent = [word for word in sent_ if word not in punctuation]
         sent = sent_.copy()
         while (len(sent) < max_length):
             sent.append(pad_token)
@@ -80,7 +77,7 @@ def pad_sents(sents: List[List[str]], pad_token: str) -> List[List[str]]:
 
 def read_corpus(file_path: str, source: str) -> List[List[str]]:
     """
-    Read file, where each sentence is dilineated by a `\n`.
+    Read file, where each sentence is dilineated by a "\n".
 
     @param file_path (str): path to file containing corpus
     @param source (str): "src" or "trg" indicating whether text
@@ -88,14 +85,14 @@ def read_corpus(file_path: str, source: str) -> List[List[str]]:
     @returns data (List[List(str)]): sentences as a list of list of words.
     """
     data = []
-    # with open(file_path, encoding="utf-8") as file:
-    for line in open(file_path):#file:
-        sent = nltk.word_tokenize(line)
+    with open(file_path, encoding="utf-8") as file:   # with open(file_path, encoding="utf-8") as file:
+        for line in file:
+            sent = nltk.word_tokenize(line)
 
-        # only append <s> and </s> to the target sentence
-        if source == "trg":
-            sent = ["<s>"] + sent + ["</s>"]
-        data.append(sent)
+            # only append <s> and </s> to the target sentence
+            if source == "trg":
+                sent = ["<s>"] + sent + ["</s>"]
+            data.append(sent)
 
     return data
 

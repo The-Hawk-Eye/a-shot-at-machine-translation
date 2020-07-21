@@ -8,7 +8,6 @@ import torch.nn.utils
 import numpy as np
 import sys
 from typing import List, Tuple, Dict, Set, Union
-# from tqdm import tqdm
 
 from utils import read_corpus, batch_iter
 from nmt_model import NMT, Hypothesis
