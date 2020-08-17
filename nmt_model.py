@@ -296,10 +296,7 @@ class NMT(nn.Module):
         @returns dec_state (tuple (Tensor, Tensor)): Tuple of tensors both shape (b, h), where b = batch size, h = hidden size.
                 First tensor is decoder's new hidden state, second tensor is decoder's new cell state.
         @returns o_t (Tensor): Combined output Tensor at timestep t, shape (b, h), where b = batch size, h = hidden size.
-        @returns e_t (Tensor): Tensor of shape (b, src_len). It is attention scores distribution.
-                                Note: You will not use this outside of this function.
-                                      We are simply returning this value so that we can sanity check
-                                      your implementation.
+        @returns e_t (Tensor): Attention scores distribution Tensor at timestep t, shape (b, src_len).
         """
         dec_state = self.decoder(Ybar_t, dec_state)
         (dec_hidden, dec_cell) = dec_state
